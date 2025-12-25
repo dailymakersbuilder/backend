@@ -11,5 +11,5 @@ export interface IUserResponse {
   loginType: LoginTypes;
   createdAt: Date;
   updatedAt: Date;
-  token: string;
+  token?: string;
 }
