@@ -7,7 +7,8 @@ export const registerUser = async (
   fullName: string,
   email: string,
   password: string,
-  device: DevicesType
+  device: DevicesType,
+  msgToken: string,
 ): Promise<IUserResponse> => {
 
   const existingUser = await User.findOne({ email });
@@ -22,6 +23,7 @@ export const registerUser = async (
     email,
     password: hashedPass,
     device,
+    msgToken,
   });
 
   if (!process.env.JWT_SECRET) {
@@ -36,6 +38,7 @@ export const registerUser = async (
     email: user.email,
     device: user.device,
     avatarUrl: user.avatarUrl,
+    msgToken: user.msgToken,
     loginType: user.loginType,
     token,
     createdAt: user.createdAt,
@@ -70,6 +73,7 @@ export const loginUser = async (
     email: user.email,
     device: user.device,
     avatarUrl: user.avatarUrl,
+    msgToken: user.msgToken,
     loginType: user.loginType,
     token,
     createdAt: user.createdAt,
@@ -78,7 +82,8 @@ export const loginUser = async (
 };
 
 export const findOrCreateFirebaseUser = async (
-  firebaseUser: any
+  firebaseUser: any,
+  msgToken: string,
 ): Promise<IUserResponse> => {
 
   let user = await User.findOne({ firebaseUid: firebaseUser.uid });
@@ -92,6 +97,7 @@ export const findOrCreateFirebaseUser = async (
       email: firebaseUser.email,
       fullName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
       avatarUrl: firebaseUser.photoURL,
+      msgToken,
       loginType: provider.includes('google') ? 'google' : provider.includes('apple') ? 'apple' : 'standard',
       device: provider.includes('android') ? 'android' : provider.includes('iphone') ? 'iphone' : 'web',
     });
@@ -103,6 +109,7 @@ export const findOrCreateFirebaseUser = async (
     fullName: user.fullName,
     email: user.email,
     device: user.device,
+    msgToken: user.msgToken,
     avatarUrl: user.avatarUrl,
     loginType: user.loginType,
     token,

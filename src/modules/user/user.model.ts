@@ -8,6 +8,7 @@ export interface IUser {
   firebaseUid?: string;
   device: DevicesType;
   avatarUrl?: string;
+  msgToken: string;
   loginType: LoginTypes;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +51,10 @@ const UserSchema = new Schema(
     device: {
       type: String,
       enum: ["android", "iphone", "web", "other"],
+      required: true,
+    },
+    msgToken: {
+      type: String,
       required: true,
     },
     loginType: {

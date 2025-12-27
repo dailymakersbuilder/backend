@@ -13,11 +13,11 @@ export const registerController = async (
     next: NextFunction
 ) => {
     try {
-        const { fullName, email, password, device } = req.body;
-        if (!fullName || !email || !password || !device) {
+        const { fullName, email, password, device, msgToken } = req.body;
+        if (!fullName || !email || !password || !device || !msgToken) {
             throw new Error("Missing required fields");
         }
-        const user = await registerUser(fullName, email, password, device);
+        const user = await registerUser(fullName, email, password, device, msgToken);
         responseHandler(res, user, 201, "User registered successfully");
     } catch (error) {
         next(error);
@@ -47,15 +47,15 @@ export const findOrCreateFirebaseUserController = async (
     next: NextFunction
 ) => {
     try {
-        const { idToken } = req.body;
-        if (!idToken) {
-            throw new Error("Missing id Token");
+        const { idToken, msgToken } = req.body;
+        if (!idToken || !msgToken) {
+            throw new Error("Missing id Token or msgToken");
         }
         const decodedToken = await verifyFirebaseToken(idToken);
 
         const firebaseUser = await getFirebaseUser(decodedToken.uid);
 
-        const user = await findOrCreateFirebaseUser(firebaseUser);
+        const user = await findOrCreateFirebaseUser(firebaseUser, msgToken);
 
         responseHandler(res, user, 200, "Firebase user authenticated successfully");
     } catch (error) {

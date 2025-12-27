@@ -8,6 +8,7 @@ export interface IUserResponse {
   email: string;
   device: DevicesType;
   avatarUrl?: string;
+  msgToken: string;
   loginType: LoginTypes;
   createdAt: Date;
   updatedAt: Date;
