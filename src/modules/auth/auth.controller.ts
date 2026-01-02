@@ -4,7 +4,9 @@ import { verifyFirebaseToken, getFirebaseUser } from "./auth.handler";
 import {
     registerUser,
     loginUser,
-    findOrCreateFirebaseUser
+    findOrCreateFirebaseUser,
+    sendOTP,
+    verifyOTP,
 } from "./auth.service";
 
 export const registerController = async (
@@ -59,6 +61,42 @@ export const findOrCreateFirebaseUserController = async (
 
         responseHandler(res, user, 200, "Firebase user authenticated successfully");
     } catch (error) {
+        next(error);
+    }
+};
+
+export const sendOTPController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            throw new Error("Email is required");
+        }
+        const data = await sendOTP(email);
+        responseHandler(res, data, 200, "OTP sent successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+};
+
+export const verifyOTPController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) {
+            throw new Error("Email and code are required");
+        }
+        await verifyOTP(email, code);
+        responseHandler(res, null, 200, "OTP verified successfully");
+    }
+    catch (error) {
         next(error);
     }
 };

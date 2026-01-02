@@ -1,7 +1,9 @@
 import User from "../user/user.model";
+import Otp from "./otp.model";
+import { IOtp } from "./otp.model";
 import bcrypt from "bcrypt";
 import { DevicesType, IUserResponse } from "../user/user.types";
-import { generateJwtToken } from "./auth.handler";
+import { generateJwtToken, generateOTP } from "./auth.handler";
 
 export const registerUser = async (
   fullName: string,
@@ -118,3 +120,35 @@ export const findOrCreateFirebaseUser = async (
   }
 
 }
+
+export const sendOTP =
+  async (email: string): Promise<IOtp> => {
+    const code = generateOTP();
+    const generatedCode = await Otp.findOneAndUpdate(
+      { email },
+      { code, expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+      { upsert: true, new: true }
+    );
+
+    if (!generatedCode) {
+      throw new Error("Failed to generate OTP");
+    }
+
+    return generatedCode;
+  };
+
+export const verifyOTP =
+  async (email: string, code: string): Promise<boolean> => {
+    const otpRecord = await Otp.findOne({ email, code });
+    if (!otpRecord) {
+      throw new Error("Invalid OTP");
+    }
+    if (otpRecord.expiresAt < new Date()) {
+      throw new Error("OTP has expired");
+    }
+    await Otp.deleteOne({ _id: otpRecord._id });
+    return true;
+  }
+
+
+
