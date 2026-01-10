@@ -7,6 +7,7 @@ import {
     findOrCreateFirebaseUser,
     sendOTP,
     verifyOTP,
+    resetPassword
 } from "./auth.service";
 
 export const registerController = async (
@@ -95,6 +96,25 @@ export const verifyOTPController = async (
         }
         await verifyOTP(email, code);
         responseHandler(res, null, 200, "OTP verified successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+};
+
+
+export const resetPasswordController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { email, newPassword } = req.body;
+        if (!email || !newPassword) {
+            throw new Error("Email and new password are required");
+        }
+        await resetPassword(email, newPassword);
+        responseHandler(res, null, 200, "Password reset successfully");
     }
     catch (error) {
         next(error);

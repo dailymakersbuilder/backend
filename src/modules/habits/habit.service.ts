@@ -2,6 +2,7 @@ import Habit from "./habit.model";
 import { IHabit } from "./habit.model";
 import User from "../user/user.model";
 import mongoose from "mongoose";
+import { CRAFTING_AND_ARTS_HOBBIES } from "./constants";
 
 export const createHabit = async (
     userId: string,
@@ -58,14 +59,18 @@ export const deleteHabitById = async (
 }
 
 export const updateHabitById = async (
-    habitId: string,
     userId: string,
-    updateData: Partial<IHabit>
+    habitId: string,
+    habitData: Partial<IHabit>
 ): Promise<IHabit | null> => {
     const habit = await Habit.findOne({ _id: new mongoose.Types.ObjectId(habitId), userId: new mongoose.Types.ObjectId(userId) });
     if (!habit) {
         throw new Error("Habit not found or you do not have permission to update it");
     }
-    const updatedHabit = await Habit.findByIdAndUpdate(habitId, updateData, { new: true });
+    const updatedHabit = await Habit.findByIdAndUpdate(habitId, habitData, { new: true });
     return updatedHabit;
+}
+
+export const getListOfHabits = async (): Promise<typeof CRAFTING_AND_ARTS_HOBBIES> => {
+    return CRAFTING_AND_ARTS_HOBBIES;
 }

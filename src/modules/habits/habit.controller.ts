@@ -4,9 +4,11 @@ import {
     getHabitsByUserId,
     getHabitById,
     deleteHabitById,
-    updateHabitById
+    updateHabitById,
+    getListOfHabits
 } from "./habit.service";
 import { responseHandler } from "../../middlewares/responseHandler";
+import { IHabit } from "./habit.model";
 
 interface AuthRequest extends Request {
     user?: {
@@ -24,11 +26,50 @@ export const createHabitController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const habitData = req.body;
+        const {
+            title,
+            category,
+            iconUrl,
+            color,
+
+            repeatType,
+            repeatDaysOfWeek,
+            repeatDaysOfMonth,
+            repeatMonthsOfYear,
+
+            goalValue,
+            goalUnit,
+
+            remindersEnabled,
+            reminderTimes,
+        } = req.body;
 
         const files = req.files as any;
         const images = Array.isArray(files) ? files.map((file: any) => file.location) : [];
-        habitData.images = images;
+        const habitData: Partial<IHabit> = {
+            title,
+            category,
+            iconUrl,
+            color,
+            images,
+
+            repeat: {
+                type: repeatType,
+                daysOfWeek: repeatDaysOfWeek,
+                daysOfMonth: repeatDaysOfMonth?.map(Number),
+                monthsOfYear: repeatMonthsOfYear?.map(Number),
+            },
+
+            goal: {
+                value: Number(goalValue),
+                unit: goalUnit,
+            },
+
+            reminders: {
+                enabled: remindersEnabled === "true",
+                times: reminderTimes,
+            },
+        };
 
         const habit = await createHabit(userId, habitData);
         return responseHandler(res, habit, 201, "Habit created successfully");
@@ -105,15 +146,88 @@ export const updateHabitController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const habitId = req.params.habitId;
-        const updateData = req.body;
+        const { habitId } = req.params;
+
+        const {
+            title,
+            category,
+            iconUrl,
+            color,
+
+            repeatType,
+            repeatDaysOfWeek,
+            repeatDaysOfMonth,
+            repeatMonthsOfYear,
+
+            goalValue,
+            goalUnit,
+
+            remindersEnabled,
+            reminderTimes,
+
+            isActive,
+        } = req.body;
 
         const files = req.files as any;
-        const images = Array.isArray(files) ? files.map((file: any) => file.location) : [];
-        updateData.images = images;
+        const images = Array.isArray(files) ? files.map((file: any) => file.location) : undefined;
 
-        const updatedHabit = await updateHabitById(habitId, userId, updateData);
-        return responseHandler(res, updatedHabit, 200, "Habit updated successfully");
+        // Build update object with only provided fields
+        const habitData: Partial<IHabit> = {};
+
+        if (title !== undefined) habitData.title = title;
+        if (category !== undefined) habitData.category = category;
+        if (iconUrl !== undefined) habitData.iconUrl = iconUrl;
+        if (color !== undefined) habitData.color = color;
+        if (images !== undefined) habitData.images = images;
+        if (isActive !== undefined) habitData.isActive = isActive;
+
+        // Handle repeat settings
+        if (repeatType !== undefined || repeatDaysOfWeek !== undefined || 
+            repeatDaysOfMonth !== undefined || repeatMonthsOfYear !== undefined) {
+            habitData.repeat = {
+                type: repeatType,
+                daysOfWeek: repeatDaysOfWeek,
+                daysOfMonth: repeatDaysOfMonth?.map(Number),
+                monthsOfYear: repeatMonthsOfYear?.map(Number),
+            };
+        }
+
+        // Handle goal settings
+        if (goalValue !== undefined || goalUnit !== undefined) {
+            habitData.goal = {
+                value: goalValue !== undefined ? Number(goalValue) : undefined as any,
+                unit: goalUnit,
+            } as any;
+        }
+
+        // Handle reminders
+        if (remindersEnabled !== undefined || reminderTimes !== undefined) {
+            habitData.reminders = {
+                enabled: remindersEnabled === "true" || remindersEnabled === true,
+                times: reminderTimes,
+            } as any;
+        }
+
+        const habit = await updateHabitById(userId, habitId, habitData);
+        
+        if (!habit) {
+            return responseHandler(res, null, 404, "Habit not found");
+        }
+
+        return responseHandler(res, habit, 200, "Habit updated successfully");
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getListOfHabitsController = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const habitsList = await getListOfHabits();
+        return responseHandler(res, habitsList, 200, "List of habits retrieved successfully");
     }
     catch (error) {
         next(error);

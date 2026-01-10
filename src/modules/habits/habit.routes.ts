@@ -7,6 +7,7 @@ import {
     getHabitByIdController,
     deleteHabitController,
     updateHabitController,
+    getListOfHabitsController
  } from "./habit.controller";
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get("/", authHandler, getHabitsController);
 router.get("/:habitId", authHandler, getHabitByIdController);
 router.delete("/:habitId", authHandler, deleteHabitController);
 router.put("/:habitId", authHandler, upload.array("images", 3), updateHabitController);
+router.get("/list/all", authHandler, getListOfHabitsController);
 
 export default router;

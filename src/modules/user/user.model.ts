@@ -10,6 +10,7 @@ export interface IUser {
   avatarUrl?: string;
   msgToken: string;
   loginType: LoginTypes;
+  otpVerified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,7 +56,11 @@ const UserSchema = new Schema(
     },
     msgToken: {
       type: String,
-      required: true,
+      required: false,
+    },
+    otpVerified: {
+      type: Boolean,
+      default: false,
     },
     loginType: {
       type: String,

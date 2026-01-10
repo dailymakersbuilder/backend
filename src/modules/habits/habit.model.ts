@@ -1,19 +1,46 @@
 import mongoose, { HydratedDocument, Schema } from 'mongoose';
 
+export type RepeatType =
+    | "EVERY_DAY"
+    | "WEEKLY"
+    | "MONTHLY"
+    | "YEARLY";
+
+export type GoalUnit = "MINUTES" | "HOURS";
+
 export interface IHabit {
     userId: mongoose.Types.ObjectId;
+
     title: string;
     category: string;
-    description?: string;
+
     iconUrl?: string;
     color?: string;
     images?: string[];
-    repeat: boolean;
-    repeatType?: string;
-    repeatDays?: string[];
-    goal: number;
-    reminderTimes: string[];
+
+    repeat: {
+        type: RepeatType;
+        // For WEEKLY → ["MON", "WED", "FRI"]
+        daysOfWeek?: string[];
+        // For MONTHLY → [1, 15, 30]
+        daysOfMonth?: number[];
+        // For YEARLY → [1, 6, 12]
+        monthsOfYear?: number[];
+    };
+
+    goal: {
+        value: number;
+        unit: GoalUnit;
+    };
+
+    reminders: {
+        times: string[]; // ["06:30", "21:00"]
+        enabled: boolean;
+    };
+
+    isActive: boolean;
 }
+
 
 export type HabitDocument = HydratedDocument<IHabit>;
 
@@ -21,58 +48,91 @@ const HabitSchema = new Schema(
     {
         userId: {
             type: Schema.Types.ObjectId,
-            ref: 'User',
+            ref: "User",
             required: true,
             index: true,
         },
+
         title: {
             type: String,
             required: true,
             trim: true,
         },
+
         category: {
             type: String,
-            required: true, 
+            required: true,
             trim: true,
+            index: true,
         },
-        description: {
-            type: String,
-            trim: true,
-        },
-        iconUrl: {
-            type: String,
-            trim: true,
-        },
-        color: {
-            type: String,
-            trim: true,
-        },
-        images: [{
-            type: String,
-            trim: true,
-        }],
+
+        iconUrl: String,
+        color: String,
+
+        images: [{ type: String }],
+
         repeat: {
-            type: Boolean,
-            required: true,
-            default: false,
+            type: {
+                type: String,
+                enum: ["EVERY_DAY", "WEEKLY", "MONTHLY", "YEARLY"],
+                required: true,
+                default: "EVERY_DAY",
+            },
+
+            daysOfWeek: [
+                {
+                    type: String,
+                    enum: ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+                },
+            ],
+
+            daysOfMonth: [
+                {
+                    type: Number,
+                    min: 1,
+                    max: 31,
+                },
+            ],
+
+            monthsOfYear: [
+                {
+                    type: Number,
+                    min: 1,
+                    max: 12,
+                },
+            ],
         },
-        repeatType: {
-            type: String,
-            trim: true,
-        },
-        repeatDays: [{
-            type: String,
-            trim: true,
-        }],
+
         goal: {
-            type: Number,
-            required: true,
-            default: 1,
+            value: {
+                type: Number,
+                required: true,
+                min: 1,
+            },
+            unit: {
+                type: String,
+                enum: ["MINUTES", "HOURS"],
+                required: true,
+            },
         },
-        reminderTimes: [{
-            type: String,
-            trim: true,
-        }],
+
+        reminders: {
+            enabled: {
+                type: Boolean,
+                default: true,
+            },
+            times: [
+                {
+                    type: String, // HH:mm
+                    match: /^([01]\d|2[0-3]):([0-5]\d)$/,
+                },
+            ],
+        },
+
+        isActive: {
+            type: Boolean,
+            default: true,
+        },
     },
     { timestamps: true }
 );

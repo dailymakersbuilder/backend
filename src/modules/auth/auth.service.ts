@@ -123,6 +123,10 @@ export const findOrCreateFirebaseUser = async (
 
 export const sendOTP =
   async (email: string): Promise<IOtp> => {
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new Error("User not found");
+    }
     const code = generateOTP();
     const generatedCode = await Otp.findOneAndUpdate(
       { email },
@@ -139,6 +143,10 @@ export const sendOTP =
 
 export const verifyOTP =
   async (email: string, code: string): Promise<boolean> => {
+    const user = await User.findOne({ email });
+    if (!user) {
+      throw new Error("User not found");
+    }
     const otpRecord = await Otp.findOne({ email, code });
     if (!otpRecord) {
       throw new Error("Invalid OTP");
@@ -146,9 +154,27 @@ export const verifyOTP =
     if (otpRecord.expiresAt < new Date()) {
       throw new Error("OTP has expired");
     }
+    if (user) {
+      user.otpVerified = true;
+      await user.save();
+    }
     await Otp.deleteOne({ _id: otpRecord._id });
     return true;
   }
 
-
-
+export const resetPassword = async (
+  email: string,
+  newPassword: string
+): Promise<void> => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new Error("User not found");
+  }
+  if (user?.otpVerified !== true) {
+    throw new Error("OTP not verified for this user");
+  }
+  const hashedPass = bcrypt.hashSync(newPassword, 10);
+  user.password = hashedPass;
+  user.otpVerified = false;
+  await user.save();
+};
