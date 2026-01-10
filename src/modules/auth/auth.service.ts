@@ -78,6 +78,7 @@ export const loginUser = async (
     msgToken: user.msgToken,
     loginType: user.loginType,
     token,
+    phone: user.phone,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -114,6 +115,7 @@ export const findOrCreateFirebaseUser = async (
     msgToken: user.msgToken,
     avatarUrl: user.avatarUrl,
     loginType: user.loginType,
+    phone: user.phone,
     token,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

@@ -41,6 +41,7 @@ export const updateUser = async (
         id: user._id.toString(),
         fullName: user.fullName,
         email: user.email,
+        phone: user.phone,
         device: user.device,
         msgToken: user.msgToken,
         avatarUrl: user.avatarUrl,

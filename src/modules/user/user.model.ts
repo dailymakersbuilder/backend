@@ -4,6 +4,7 @@ import type { DevicesType, LoginTypes } from "./user.types";
 export interface IUser {
   fullName: string;
   email: string;
+  phone?: string;
   password?: string;
   firebaseUid?: string;
   device: DevicesType;
@@ -11,6 +12,7 @@ export interface IUser {
   msgToken: string;
   loginType: LoginTypes;
   otpVerified?: boolean;
+  preferences?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,7 +35,9 @@ const UserSchema = new Schema(
       trim: true,
       index: true,
     },
-
+    phone: {
+      type: String,
+    },
     password: {
       type: String,
       required: function(this: IUser) {
