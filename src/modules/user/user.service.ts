@@ -19,6 +19,7 @@ export const findByUserId = async (
         msgToken: user.msgToken,
         avatarUrl: user.avatarUrl,
         loginType: user.loginType,
+        preferences: user.preferences,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
     }
@@ -46,6 +47,35 @@ export const updateUser = async (
         msgToken: user.msgToken,
         avatarUrl: user.avatarUrl,
         loginType: user.loginType,
+        preferences: user.preferences,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+    }
+}
+
+export const updatePreferences = async (
+    userId: string,
+    preferences: Record<string, any>,
+): Promise<IUserResponse | null> => {
+    const user = await User.findByIdAndUpdate(
+        userId,
+        { $set: { preferences } },
+        { new: true }
+    )
+    
+    if (!user) {
+        throw new Error("User not found")
+    }
+    return {
+        id: user._id.toString(),
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        device: user.device,
+        msgToken: user.msgToken,
+        avatarUrl: user.avatarUrl,
+        loginType: user.loginType,
+        preferences: user.preferences,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
     }

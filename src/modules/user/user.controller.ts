@@ -3,6 +3,7 @@ import { responseHandler } from "../../middlewares/responseHandler";
 import {
     findByUserId,
     updateUser,
+    updatePreferences,
 } from "./user.service";
 
 interface AuthRequest extends Request {
@@ -47,6 +48,25 @@ export const updateUserController = async (
         const updatedUser = await updateUser(userId, updateData);
         return responseHandler(res, updatedUser, 200, "User updated successfully");
     } catch (error) {
+        next(error);
+    }
+}
+
+export const updatePreferencesController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const preferences = req.body.preferences;
+        const updatedUser = await updatePreferences(userId, preferences);
+        return responseHandler(res, updatedUser, 200, "Preferences updated successfully");
+    }
+    catch (error) {
         next(error);
     }
 }

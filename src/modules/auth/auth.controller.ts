@@ -33,11 +33,11 @@ export const loginController = async (
     next: NextFunction
 ) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, msgToken } = req.body;
         if (!email || !password) {
             throw new Error("Missing required fields");
         }
-        const user = await loginUser(email, password);
+        const user = await loginUser(email, password, msgToken);
         responseHandler(res, user, 200, "User logged in successfully");
     } catch (error) {
         next(error);

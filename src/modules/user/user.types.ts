@@ -14,4 +14,5 @@ export interface IUserResponse {
   updatedAt: Date;
   phone?: string;
   token?: string;
+  preferences?: Record<string, any>;
 }

@@ -5,7 +5,10 @@ import {
     getHabitById,
     deleteHabitById,
     updateHabitById,
-    getListOfHabits
+    getListOfHabits,
+    addHabitLog,
+    getHabitsByDate,
+    updateHabitLogProgress
 } from "./habit.service";
 import { responseHandler } from "../../middlewares/responseHandler";
 import { IHabit } from "./habit.model";
@@ -89,7 +92,10 @@ export const getHabitsController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const habits = await getHabitsByUserId(userId);
+        const { category } = req.query;
+        const categoryString = typeof category === "string" ? category : undefined;
+
+        const habits = await getHabitsByUserId(userId, categoryString);
         return responseHandler(res, habits, 200, "Habits retrieved successfully");
     }
     catch (error) {
@@ -228,6 +234,70 @@ export const getListOfHabitsController = async (
     try {
         const habitsList = await getListOfHabits();
         return responseHandler(res, habitsList, 200, "List of habits retrieved successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const addHabitLogController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+
+        await addHabitLog(userId);
+        return responseHandler(res, null, 200, "Habit logs added/updated successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const getHabitsByDateController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const { date } = req.query;
+        if (typeof date !== "string") {
+            throw new Error("Date query parameter is required and must be a string");
+        }
+        const habits = await getHabitsByDate(userId, date);
+        return responseHandler(res, habits, 200, "Habits for the specified date retrieved successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const updateHabitLogProgressController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const { habitId } = req.params;
+        const { date, progress } = req.body;
+        if (!date || !habitId || progress === undefined) {
+            throw new Error("date, habitId, and progress are required in the request body");
+        }
+        await updateHabitLogProgress(userId, habitId, date, Number(progress));
+        return responseHandler(res, null, 200, "Habit log progress updated successfully");
     }
     catch (error) {
         next(error);

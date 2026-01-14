@@ -74,6 +74,10 @@ const UserSchema = new Schema(
     avatarUrl: {
       type: String,
     },
+    preferences: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );

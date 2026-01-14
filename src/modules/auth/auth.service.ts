@@ -51,6 +51,7 @@ export const registerUser = async (
 export const loginUser = async (
   email: string,
   password: string,
+  msgToken?: string,
 ): Promise<IUserResponse> => {
 
   const user = await User.findOne({ email });
@@ -68,6 +69,11 @@ export const loginUser = async (
   }
 
   const token = generateJwtToken({ id: user._id });
+
+  if (msgToken) {
+    user.msgToken = msgToken;
+    await user.save();
+  }
 
   return {
     id: user._id.toString(),
