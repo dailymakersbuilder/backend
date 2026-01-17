@@ -11,6 +11,8 @@ export interface IHabitLog {
     percentageCompleted: number;
 
     completed: boolean;
+    skipped?: boolean;
+    failed?: boolean;
 }
 
 export type HabitLogDocument = HydratedDocument<IHabitLog>;
@@ -56,6 +58,14 @@ const HabitLogSchema = new Schema(
         },
 
         completed: {
+            type: Boolean,
+            default: false,
+        },
+        skipped: {
+            type: Boolean,
+            default: false,
+        },
+        failed: {
             type: Boolean,
             default: false,
         },

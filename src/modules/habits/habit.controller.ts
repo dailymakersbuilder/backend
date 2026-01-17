@@ -8,7 +8,12 @@ import {
     getListOfHabits,
     addHabitLog,
     getHabitsByDate,
-    updateHabitLogProgress
+    updateHabitLogProgress,
+    getDiscoverHabits,
+    updateSkippedFailedStatus,
+    generateHabitReport,
+    getRecommendedHabits,
+    getHabitsWithPopularity
 } from "./habit.service";
 import { responseHandler } from "../../middlewares/responseHandler";
 import { IHabit } from "./habit.model";
@@ -92,10 +97,13 @@ export const getHabitsController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const { category } = req.query;
+        const { category, from, to, sortBy } = req.query;
         const categoryString = typeof category === "string" ? category : undefined;
+        const fromString = typeof from === "string" ? from : undefined;
+        const toString = typeof to === "string" ? to : undefined;
+        const sortByString = (sortBy === "createdAt" || sortBy === "updatedAt" || sortBy === "title") ? sortBy : undefined;
 
-        const habits = await getHabitsByUserId(userId, categoryString);
+        const habits = await getHabitsByUserId(userId, categoryString, fromString, toString, sortByString);
         return responseHandler(res, habits, 200, "Habits retrieved successfully");
     }
     catch (error) {
@@ -298,6 +306,111 @@ export const updateHabitLogProgressController = async (
         }
         await updateHabitLogProgress(userId, habitId, date, Number(progress));
         return responseHandler(res, null, 200, "Habit log progress updated successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const getDiscoverHabitsController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const {trendingOnly, category} = req.query;
+        const userId = req.user.id;
+        const habits = await getDiscoverHabits(userId, category as string | undefined, trendingOnly === 'true');
+        return responseHandler(res, habits, 200, "Discover habits retrieved successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const updateSkippedFailedStatusController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const { habitId } = req.params;
+        const { date, skipped, failed } = req.body;
+        if (!date || !habitId) {
+            throw new Error("date and habitId are required in the request body");
+        }
+        await updateSkippedFailedStatus(userId, habitId, date, skipped, failed );
+        return responseHandler(res, null, 200, "Habit log skipped/failed status updated successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const generateHabitReportController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const { reportType ,startDate, endDate } = req.query;
+        if (reportType !== "daily" && reportType !== "weekly" && reportType !== "monthly") {
+            throw new Error("reportType query parameter must be one of: daily, weekly, monthly");
+        }
+        const report = await generateHabitReport(
+            userId,
+            reportType,
+            typeof startDate === "string" ? startDate : undefined,
+            typeof endDate === "string" ? endDate : undefined
+        );
+        return responseHandler(res, report, 200, "Habit report generated successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const getRecommendedHabitsController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const habits = await getRecommendedHabits(userId);
+        return responseHandler(res, habits, 200, "Recommended habits retrieved successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const getHabitsWithPopularityController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        const habits = await getHabitsWithPopularity();
+        return responseHandler(res, habits, 200, "Habits with popularity retrieved successfully");
     }
     catch (error) {
         next(error);

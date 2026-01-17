@@ -2,9 +2,18 @@ import Habit from "./habit.model";
 import { IHabit } from "./habit.model";
 import User from "../user/user.model";
 import mongoose from "mongoose";
-import { CRAFTING_AND_ARTS_HOBBIES } from "./constants";
-import { isHabitForToday, calculateProgress } from "./habit.helper";
+import { CRAFTING_AND_ARTS_CATEGORIES } from "./constants";
+import { isHabitForToday, calculateProgress, dateToWeekDay } from "./habit.helper";
 import HabitLog, { IHabitLog } from "./habitlog.model";
+import dayjs from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
+import { ReportResult } from "./habit.types";
+
+export interface IHabitWithPopularity extends IHabit {
+    activeUsers: number
+}
+
+dayjs.extend(isoWeek);
 
 export const createHabit = async (
     userId: string,
@@ -31,6 +40,9 @@ export const createHabit = async (
 export const getHabitsByUserId = async (
     userId: string,
     category?: string,
+    from?: string,
+    to?: string,
+    sortBy?: "createdAt" | "updatedAt" | "title"
 ): Promise<IHabit[]> => {
     const query: any = {
         userId: new mongoose.Types.ObjectId(userId),
@@ -40,7 +52,15 @@ export const getHabitsByUserId = async (
     if (category) {
         query.category = { $regex: `^${category}$`, $options: "i" };
     }
-    const habits = await Habit.find(query);
+
+    if (from || to) {
+        query.createdAt = {};
+        if (from) query.createdAt.$gte = new Date(from);
+        if (to) query.createdAt.$lte = new Date(to);
+    }
+    const sortField = sortBy || "createdAt";
+
+    const habits = await Habit.find(query).sort({ [sortField]: -1 });
     if (!habits) {
         throw new Error("No habits found for this user");
     }
@@ -82,9 +102,16 @@ export const updateHabitById = async (
     return updatedHabit;
 }
 
-export const getListOfHabits = async (): Promise<typeof CRAFTING_AND_ARTS_HOBBIES> => {
-    return CRAFTING_AND_ARTS_HOBBIES;
-}
+export const getListOfHabits = async (): Promise<Record<string, string[]>> => {
+    const result: Record<string, string[]> = {};
+
+    for (const category of CRAFTING_AND_ARTS_CATEGORIES) {
+        result[category.title] = category.habits.map(habit => habit.title);
+    }
+
+    return result;
+};
+
 
 export const addHabitLog = async (
     userId: string,
@@ -255,3 +282,316 @@ export const updateHabitLogProgress = async (
     await habitLog.save();
     return habitLog;
 }
+
+export const updateSkippedFailedStatus = async (
+    userId: string,
+    habitId: string,
+    dateStr: string,
+    skipped: boolean,
+    failed: boolean
+): Promise<IHabitLog | null> => {
+    const habit = await Habit.findOne({ _id: new mongoose.Types.ObjectId(habitId), userId: new mongoose.Types.ObjectId(userId) });
+    if (!habit) {
+        throw new Error("Habit not found or you do not have permission to update its log");
+    }
+    const habitLog = await HabitLog.findOne({ habitId: new mongoose.Types.ObjectId(habitId), userId: new mongoose.Types.ObjectId(userId), date: dateStr });
+    if (!habitLog) {
+        throw new Error("Habit log not found for the specified date");
+    }
+    habitLog.skipped = skipped;
+    habitLog.failed = failed;
+    await habitLog.save();
+    return habitLog;
+}
+
+export const getDiscoverHabits = async (
+    userId: string,
+    category?: string,
+    trendingOnly: boolean = false
+) => {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    /* -------------------- TRENDING DATA -------------------- */
+    let trending = await HabitLog.aggregate([
+        { $match: { userId: userObjectId } },
+        {
+            $group: {
+                _id: "$habitTitle",
+                count: { $sum: 1 },
+            },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 20 },
+        {
+            $project: {
+                _id: 0,
+                title: "$_id",
+            },
+        },
+    ]);
+
+    const trendingTitles = new Set(trending.map(h => h?.title?.toLowerCase()));
+
+
+    if (trending.length < 20) {
+        const allConstantHabits = CRAFTING_AND_ARTS_CATEGORIES.flatMap(c =>
+            c.habits.map(h => h.title)
+        ).filter(h => !trendingTitles.has(h?.toLowerCase()));
+
+        const shuffled = allConstantHabits.sort(() => Math.random() - 0.5);
+
+        const needed = 20 - trending.length;
+        const filler = shuffled.slice(0, needed);
+
+        trending = [
+            ...trending.map(h => ({ title: h.title })),
+            ...filler.map(title => ({ title })),
+        ];
+    }
+
+    /* -------------------- 1️⃣ TRENDING ONLY -------------------- */
+    if (trendingOnly) {
+        return {
+            type: "TRENDING",
+            habits: trending.map(h => h.title),
+        };
+    }
+
+    /* -------------------- 2️⃣ CATEGORY ONLY -------------------- */
+    if (category) {
+        const matchedCategory = CRAFTING_AND_ARTS_CATEGORIES.find(
+            c => c.title.toLowerCase() === category.toLowerCase()
+        );
+
+        return {
+            type: "CATEGORY",
+            category,
+            habits: matchedCategory
+                ? matchedCategory.habits.map(h => h.title)
+                : [],
+        };
+    }
+
+    /* -------------------- 3️⃣ ONLY TAGS -------------------- */
+    return {
+        type: "TAGS",
+        tags: [
+            "Trending",
+            ...CRAFTING_AND_ARTS_CATEGORIES.map(c => c.title),
+        ],
+    };
+};
+
+
+export const generateHabitReport = async (
+    userId: string,
+    reportType: "daily" | "weekly" | "monthly",
+    startDate?: string, // "YYYY-MM-DD"
+    endDate?: string
+): Promise<ReportResult> => {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    /* -------------------- 1️⃣ DEFAULT DATE RANGES -------------------- */
+    const today = dayjs().format("YYYY-MM-DD");
+
+    // Daily
+    const dailyStart = startDate || today;
+    const dailyEnd = endDate || today;
+
+    // Weekly (current ISO week: Monday → Sunday)
+    const monday = startDate || dayjs().startOf("isoWeek").format("YYYY-MM-DD");
+    const sunday = endDate || dayjs().endOf("isoWeek").format("YYYY-MM-DD");
+
+    console.log("Weekly range:", monday, "to", sunday);
+
+    // Monthly (current month)
+    const monthStart = startDate || dayjs().startOf("month").format("YYYY-MM-DD");
+    const monthEnd = endDate || dayjs().endOf("month").format("YYYY-MM-DD");
+
+    console.log("Monthly range:", monthStart, "to", monthEnd);
+
+    /* -------------------- 2️⃣ FETCH HABIT LOGS -------------------- */
+    const allHabits = await Habit.find({ userId: userObjectId, isActive: true });
+
+    let dailyLogs: IHabitLog[] = [];
+    let weeklyLogs: IHabitLog[] = [];
+    let monthlyLogs: IHabitLog[] = [];
+    if (reportType === "daily") {
+        dailyLogs = await HabitLog.find({
+            userId: userObjectId,
+            date: { $gte: dailyStart, $lte: dailyEnd }
+        });
+    } else if (reportType === "weekly") {
+
+        weeklyLogs = await HabitLog.find({
+            userId: userObjectId,
+            date: { $gte: monday, $lte: sunday }
+        });
+    } else if (reportType === "monthly") {
+        monthlyLogs = await HabitLog.find({
+            userId: userObjectId,
+            date: { $gte: monthStart, $lte: monthEnd }
+        });
+    }
+
+
+    /* -------------------- 3️⃣ HELPER FUNCTION -------------------- */
+    const computeStats = (logs: typeof dailyLogs) => {
+        const total = logs.length;
+        const completed = logs.filter(l => l.completed).length;
+        const skipped = logs.filter(l => l.skipped).length;
+        const failed = logs.filter(l => l.failed).length;
+
+        const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        return { total, completed, skipped, failed, successRate };
+    };
+
+    /* -------------------- 4️⃣ WEEKLY STREAK -------------------- */
+    // Monday → Sunday
+    const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const weeklyStreak: Record<string, boolean> = {};
+
+    for (let i = 0; i < 7; i++) {
+        const date = dayjs().startOf("isoWeek").add(i, "day").format("YYYY-MM-DD");
+
+        // Filter habits that should be done today based on repeat
+        const habitsToDoToday = allHabits.filter(habit => {
+            const repeat = habit.repeat;
+            const dayOfWeek = dateToWeekDay(date); // function below
+            const dayOfMonth = parseInt(dayjs(date).format("D"));
+            const month = parseInt(dayjs(date).format("M"));
+
+            if (repeat.type === "EVERY_DAY") return true;
+            if (repeat.type === "WEEKLY" && repeat.daysOfWeek?.includes(dayOfWeek)) return true;
+            if (repeat.type === "MONTHLY" && repeat.daysOfMonth?.includes(dayOfMonth)) return true;
+            if (repeat.type === "YEARLY" && repeat.monthsOfYear?.includes(month)) return true;
+
+            return false;
+        });
+
+        // Check if all habitsToDoToday are completed in logs
+        const completedToday = habitsToDoToday.every(habit =>
+            weeklyLogs.some(log => log.habitId.toString() === habit._id.toString() && log.completed)
+        );
+
+        weeklyStreak[weekDays[i]] = completedToday;
+    }
+
+    /* -------------------- 5️⃣ RETURN REPORT -------------------- */
+    const returnData: Record<string, any> = {};
+    if (reportType === "daily") {
+        returnData['startDate'] = dailyStart;
+        returnData['endDate'] = dailyEnd;
+        returnData['daily'] = computeStats(dailyLogs);
+        returnData['weeklyStreak'] = weeklyStreak;
+
+    }
+    if (reportType === "weekly") {
+        returnData['startDate'] = monday;
+        returnData['endDate'] = sunday;
+        returnData['weekly'] = computeStats(weeklyLogs);
+        returnData['weeklyStreak'] = weeklyStreak;
+    }
+    if (reportType === "monthly") {
+        returnData['startDate'] = monthStart;
+        returnData['endDate'] = monthEnd;
+        returnData['monthly'] = computeStats(monthlyLogs);
+        returnData['weeklyStreak'] = weeklyStreak;
+
+    }
+
+    return returnData;
+};
+
+export const getRecommendedHabits = async (
+    userId: string,
+    limit: number = 20
+) => {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // 1️⃣ Get user preferences
+    const user = await User.findById(userObjectId).select("preferences").lean();
+    if (!user?.preferences) {
+        throw new Error("User preferences not found");
+    }
+
+    const preferredHabits = Object.keys(user.preferences).filter(
+        key => (user.preferences as any)[key] === true
+    );
+
+    // 2️⃣ Get all active habits to exclude
+    const activeHabits = await Habit.find({
+        userId: userObjectId,
+        isActive: true,
+    }).select("title category").lean();
+
+    const activeTitles = new Set(activeHabits.map(h => h.title.toLowerCase()));
+
+    // 3️⃣ Get all habits from DB grouped by category
+    const allHabits = await Habit.find({}).lean();
+
+    // 4️⃣ Determine categories of preferred habits
+    const preferredCategories = new Set<string>();
+    for (const habit of allHabits) {
+        if (preferredHabits.includes(habit.title)) {
+            preferredCategories.add(habit.category);
+        }
+    }
+
+    // 5️⃣ Collect recommendations from preferred categories, excluding active habits
+    const recommended: string[] = [];
+
+    for (const habit of allHabits) {
+        if (!preferredCategories.has(habit.category)) continue;
+        if (activeTitles.has(habit.title.toLowerCase())) continue;
+        if (recommended.includes(habit.title)) continue;
+
+        recommended.push(habit.title);
+
+        if (recommended.length >= limit) break;
+    }
+
+    // 6️⃣ Fallback: if no preference matches, pick any non-active habits
+    if (recommended.length === 0) {
+        for (const habit of allHabits) {
+            if (activeTitles.has(habit.title.toLowerCase())) continue;
+            if (recommended.includes(habit.title)) continue;
+
+            recommended.push(habit.title);
+            if (recommended.length >= limit) break;
+        }
+    }
+
+    return recommended.slice(0, limit);
+};
+
+export const getHabitsWithPopularity = async (): Promise<IHabitWithPopularity[]> => {
+    // Aggregate active habits
+    const habits = await Habit.aggregate([
+        { $match: { isActive: true } }, // only active habits
+        {
+            $group: {
+                _id: "$_id",            // habit id
+                doc: { $first: "$$ROOT" }, // keep all habit details
+                userSet: { $addToSet: "$userId" }, // distinct users doing this habit
+            },
+        },
+        {
+            $project: {
+                _id: "$doc._id",
+                userId: "$doc.userId",
+                title: "$doc.title",
+                category: "$doc.category",
+                iconUrl: "$doc.iconUrl",
+                color: "$doc.color",
+                goal: "$doc.goal",
+                isActive: "$doc.isActive",
+                activeUsers: { $size: "$userSet" }, // number of users doing this habit
+            },
+        },
+        { $sort: { activeUsers: -1 } }, // optional: most popular first
+    ]);
+
+    return habits;
+};
