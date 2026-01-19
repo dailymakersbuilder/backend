@@ -315,6 +315,12 @@ export const getDiscoverHabits = async (
     trendingOnly: boolean = false
 ) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
+    const habitIconMap = new Map<string, string>();
+    for (const c of CRAFTING_AND_ARTS_CATEGORIES) {
+        for (const h of c.habits) {
+            habitIconMap.set(h.title.toLowerCase(), h.iconUrl);
+        }
+    }
 
     /* -------------------- TRENDING DATA -------------------- */
     let trending = await HabitLog.aggregate([
@@ -358,7 +364,10 @@ export const getDiscoverHabits = async (
     if (trendingOnly) {
         return {
             type: "TRENDING",
-            habits: trending.map(h => h.title),
+            habits: trending.map(h => ({
+                title: h.title,
+                iconUrl: habitIconMap.get(h?.title?.toLowerCase()) || null,
+            })),
         };
     }
 
@@ -372,7 +381,10 @@ export const getDiscoverHabits = async (
             type: "CATEGORY",
             category,
             habits: matchedCategory
-                ? matchedCategory.habits.map(h => h.title)
+                ? matchedCategory.habits.map(h => ({
+                    title: h.title,
+                    iconUrl: h.iconUrl,
+                }))
                 : [],
         };
     }
@@ -386,6 +398,7 @@ export const getDiscoverHabits = async (
         ],
     };
 };
+
 
 
 export const generateHabitReport = async (
