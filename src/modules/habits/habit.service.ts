@@ -102,11 +102,16 @@ export const updateHabitById = async (
     return updatedHabit;
 }
 
-export const getListOfHabits = async (): Promise<Record<string, string[]>> => {
-    const result: Record<string, string[]> = {};
+export const getListOfHabits = async (): Promise<
+    Record<string, { title: string; iconUrl: string }[]>
+> => {
+    const result: Record<string, { title: string; iconUrl: string }[]> = {};
 
     for (const category of CRAFTING_AND_ARTS_CATEGORIES) {
-        result[category.title] = category.habits.map(habit => habit.title);
+        result[category.title] = category.habits.map(habit => ({
+            title: habit.title,
+            iconUrl: habit.iconUrl,
+        }));
     }
 
     return result;
