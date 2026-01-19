@@ -7,7 +7,7 @@ import connectDB from './config/db';
 import { errorHandler } from './middlewares/errorhandler';
 import "./config/firebase"
 import routes from "./modules/router"
-
+import "./modules/notifications/notification.cron"
 
 const app = express();
 const PORT = process.env.PORT || 5000;
