@@ -13,7 +13,7 @@ export const registerUser = async (
   msgToken: string,
 ): Promise<IUserResponse> => {
 
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email, isDeleted: { $ne: true } });
   if (existingUser) {
     throw new Error("User with this email already exists");
   }
@@ -54,7 +54,7 @@ export const loginUser = async (
   msgToken?: string,
 ): Promise<IUserResponse> => {
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email, isDeleted: { $ne: true } });
   if (!user) {
     throw new Error("User not found");
   }
@@ -96,6 +96,9 @@ export const findOrCreateFirebaseUser = async (
 ): Promise<IUserResponse> => {
 
   let user = await User.findOne({ firebaseUid: firebaseUser.uid });
+  if (user && user.isDeleted) {
+    throw new Error("User not found");
+  }
 
   if (!user) {
     const providerData = firebaseUser.providerData?.[0];

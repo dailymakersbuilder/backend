@@ -4,6 +4,7 @@ import {
     findByUserId,
     updateUser,
     updatePreferences,
+    softDeleteUser
 } from "./user.service";
 
 interface AuthRequest extends Request {
@@ -65,6 +66,24 @@ export const updatePreferencesController = async (
         const preferences = req.body.preferences;
         const updatedUser = await updatePreferences(userId, preferences);
         return responseHandler(res, updatedUser, 200, "Preferences updated successfully");
+    }
+    catch (error) {
+        next(error);
+    }
+}
+
+export const deleteUserController = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        if (!req.user?.id) {
+            throw new Error("User is not authenticated");
+        }
+        const userId = req.user.id;
+        await softDeleteUser(userId);
+        return responseHandler(res, null, 200, "User deleted successfully");
     }
     catch (error) {
         next(error);

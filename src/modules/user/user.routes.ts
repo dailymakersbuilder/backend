@@ -6,6 +6,7 @@ import {
     findByUserIdController,
     updateUserController,
     updatePreferencesController,
+    deleteUserController
 } from "./user.controller"
 
 const router = express.Router();
@@ -13,5 +14,6 @@ const router = express.Router();
 router.get('/', authHandler, findByUserIdController);
 router.put('/', authHandler, upload.single("file"), updateUserController);
 router.put('/preferences', authHandler, updatePreferencesController);
+router.delete('/', authHandler, deleteUserController);
 
 export default router;

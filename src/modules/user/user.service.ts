@@ -5,7 +5,8 @@ export const findByUserId = async (
     userId: string,
 ): Promise<IUserResponse | null> => {
 
-    const user = await User.findById(userId)
+    const query = { _id: userId, isDeleted: { $ne: true } };
+    const user = await User.findById(query)
 
     if (!user) {
         throw new Error("User not found")
@@ -79,4 +80,13 @@ export const updatePreferences = async (
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
     }
+}
+
+export const softDeleteUser = async (
+    userId: string,
+): Promise<void> => {
+    await User.findByIdAndUpdate(
+        userId,
+        { $set: { isDeleted: true } },
+    )
 }

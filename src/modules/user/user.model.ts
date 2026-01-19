@@ -13,6 +13,7 @@ export interface IUser {
   loginType: LoginTypes;
   otpVerified?: boolean;
   preferences?: Record<string, any>;
+  isDeleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,7 +31,6 @@ const UserSchema = new Schema(
     email: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
       trim: true,
       index: true,
@@ -77,6 +77,11 @@ const UserSchema = new Schema(
     preferences: {
       type: Schema.Types.Mixed,
       default: {},
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   { timestamps: true }

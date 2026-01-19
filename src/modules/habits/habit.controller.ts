@@ -50,6 +50,7 @@ export const createHabitController = async (
 
             remindersEnabled,
             reminderTimes,
+            reminderLastTime
         } = req.body;
 
         const files = req.files as any;
@@ -77,6 +78,7 @@ export const createHabitController = async (
                 enabled: remindersEnabled === "true",
                 times: reminderTimes,
             },
+            reminderLastTime
         };
 
         const habit = await createHabit(userId, habitData);
@@ -180,6 +182,7 @@ export const updateHabitController = async (
             reminderTimes,
 
             isActive,
+            reminderLastTime
         } = req.body;
 
         const files = req.files as any;
@@ -194,6 +197,7 @@ export const updateHabitController = async (
         if (color !== undefined) habitData.color = color;
         if (images !== undefined) habitData.images = images;
         if (isActive !== undefined) habitData.isActive = isActive;
+        if (reminderLastTime !== undefined ) habitData.reminderLastTime = reminderLastTime;
 
         // Handle repeat settings
         if (repeatType !== undefined || repeatDaysOfWeek !== undefined || 

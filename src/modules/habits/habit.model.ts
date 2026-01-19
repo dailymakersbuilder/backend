@@ -34,11 +34,11 @@ export interface IHabit {
     };
 
     reminders: {
-        times: string[]; // ["06:30", "21:00"]
+        times: string[];
         enabled: boolean;
     };
-
     isActive: boolean;
+    reminderLastTime?: string;
 }
 
 
@@ -132,6 +132,9 @@ const HabitSchema = new Schema(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        reminderLastTime: {
+            type: String,
         },
     },
     { timestamps: true }
