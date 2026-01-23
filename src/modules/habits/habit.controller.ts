@@ -413,7 +413,13 @@ export const getHabitsWithPopularityController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const habits = await getHabitsWithPopularity();
+        const { category, from, to, sortBy } = req.query;
+        const categoryString = typeof category === "string" ? category : undefined;
+        const fromString = typeof from === "string" ? from : undefined;
+        const toString = typeof to === "string" ? to : undefined;
+        const sortByString = (sortBy === "createdAt" || sortBy === "updatedAt" || sortBy === "title") ? sortBy : "createdAt";
+
+        const habits = await getHabitsWithPopularity(sortByString, categoryString, fromString, toString);
         return responseHandler(res, habits, 200, "Habits with popularity retrieved successfully");
     }
     catch (error) {

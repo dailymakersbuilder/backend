@@ -1,5 +1,5 @@
 import Habit from "./habit.model";
-import { IHabit } from "./habit.model";
+import { IHabit, type GoalUnit } from "./habit.model";
 import User from "../user/user.model";
 import mongoose from "mongoose";
 import { CRAFTING_AND_ARTS_CATEGORIES } from "./constants";
@@ -10,7 +10,12 @@ import isoWeek from "dayjs/plugin/isoWeek";
 import { ReportResult } from "./habit.types";
 
 export interface IHabitWithPopularity extends IHabit {
-    activeUsers: number
+    title: string;
+    category: string;
+    color?: string;
+    peopleCount: number;
+    averageTime: number;
+    unit: GoalUnit;
 }
 
 dayjs.extend(isoWeek);
@@ -584,31 +589,68 @@ export const getRecommendedHabits = async (
     return recommended.slice(0, limit);
 };
 
-export const getHabitsWithPopularity = async (): Promise<IHabitWithPopularity[]> => {
-    // Aggregate active habits
+export const getHabitsWithPopularity = async (
+    sortBy: "createdAt" | "updatedAt" | "title",
+    category?: string,
+    from?: string,
+    to?: string,
+): Promise<IHabitWithPopularity[]> => {
+    const matchStage: any = {
+        isActive: true,
+    };
+
+    if (category) {
+        matchStage.category = category;
+    }
+
+    if (from || to) {
+        matchStage.createdAt = {};
+        if (from) matchStage.createdAt.$gte = new Date(from);
+        if (to) matchStage.createdAt.$lte = new Date(to);
+    }
+
     const habits = await Habit.aggregate([
-        { $match: { isActive: true } }, // only active habits
+        { $match: matchStage },
+
+        /* ---------- Group by habit identity ---------- */
         {
             $group: {
-                _id: "$_id",            // habit id
-                doc: { $first: "$$ROOT" }, // keep all habit details
-                userSet: { $addToSet: "$userId" }, // distinct users doing this habit
+                _id: {
+                    title: "$title",
+                    category: "$category",
+                },
+                color: { $first: "$color" },
+                users: { $addToSet: "$userId" },
+                avgGoalValue: { $avg: "$goal.value" },
+                goalUnit: { $first: "$goal.unit" },
+                createdAt: { $min: "$createdAt" },
+                updatedAt: { $max: "$updatedAt" },
             },
         },
+
+        /* ---------- Shape response ---------- */
         {
             $project: {
-                _id: "$doc._id",
-                userId: "$doc.userId",
-                title: "$doc.title",
-                category: "$doc.category",
-                iconUrl: "$doc.iconUrl",
-                color: "$doc.color",
-                goal: "$doc.goal",
-                isActive: "$doc.isActive",
-                activeUsers: { $size: "$userSet" }, // number of users doing this habit
+                _id: 0,
+                title: "$_id.title",
+                category: "$_id.category",
+                color: 1,
+                usersCount: { $size: "$users" },
+                averageGoal: {
+                    $round: ["$avgGoalValue", 1],
+                },
+                goalUnit: 1,
+                createdAt: 1,
+                updatedAt: 1,
             },
         },
-        { $sort: { activeUsers: -1 } }, // optional: most popular first
+
+        /* ---------- Sorting ---------- */
+        {
+            $sort: {
+                [sortBy]: sortBy === "title" ? 1 : -1,
+            },
+        },
     ]);
 
     return habits;
