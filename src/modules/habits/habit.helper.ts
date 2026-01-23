@@ -44,3 +44,20 @@ export const dateToWeekDay = (date: string) => {
     };
     return map[day];
 };
+
+
+export const safeParseArray = <T>(value: any): T[] => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = JSON.parse(value);
+    console.log("parsed", parsed, Array.isArray(parsed))
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  return [];
+};

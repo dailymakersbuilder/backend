@@ -17,6 +17,7 @@ import {
 } from "./habit.service";
 import { responseHandler } from "../../middlewares/responseHandler";
 import { IHabit } from "./habit.model";
+import { safeParseArray } from "./habit.helper";
 
 interface AuthRequest extends Request {
     user?: {
@@ -53,27 +54,27 @@ export const createHabitController = async (
             reminderLastTime
         } = req.body;
 
+        console.log(req.body)
+
         const ALLOWED_DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-        const listrepeatDaysOfWeek = JSON.parse(repeatDaysOfWeek).filter(
-            (day: string) => ALLOWED_DAYS.includes(day)
-        );
+        const listrepeatDaysOfWeek = safeParseArray<string>(repeatDaysOfWeek)
+            .filter(day => ALLOWED_DAYS.includes(day));
 
         const ALLOWED_DAYS_OF_MONTH = [
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
             11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
             21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
         ];
-        const listrepeatDaysOfMonth = JSON.parse(repeatDaysOfMonth).filter(
-            (month: number) => ALLOWED_DAYS_OF_MONTH.includes(month)
-        );
+        const listrepeatDaysOfMonth = safeParseArray<number>(repeatDaysOfMonth)
+            .filter(day => ALLOWED_DAYS_OF_MONTH.includes(day));
 
-        const ALLOWED_YEARS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        const listrepeatMonthsOfYear = JSON.parse(repeatMonthsOfYear).filter(
-            (year: number) => ALLOWED_YEARS.includes(year)
-        );
+        const ALLOWED_MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        const listrepeatMonthsOfYear = safeParseArray<number>(repeatMonthsOfYear)
+            .filter(month => ALLOWED_MONTHS.includes(month));
 
-        const listReminderTimes = typeof reminderTimes === "string" ? JSON.parse(reminderTimes) : reminderTimes
+        const listReminderTimes = typeof reminderTimes === "string" ? safeParseArray<string>(reminderTimes) : reminderTimes
+        console.log("1", listrepeatDaysOfMonth, "2",listReminderTimes)
 
         const files = req.files as any;
         const images = Array.isArray(files) ? files.map((file: any) => file.location) : [];
