@@ -547,7 +547,7 @@ export const getRecommendedHabits = async (
     const activeHabits = await Habit.find({
         userId: userObjectId,
         isActive: true,
-    }).select("title category").lean();
+    }).select("title category iconUrl color").lean();
 
     const activeTitles = new Set(activeHabits.map(h => h.title.toLowerCase()));
 
