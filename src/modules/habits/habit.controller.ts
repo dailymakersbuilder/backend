@@ -73,6 +73,8 @@ export const createHabitController = async (
             (year: number) => ALLOWED_YEARS.includes(year)
         );
 
+        const listReminderTimes = typeof reminderTimes === "string" ? JSON.parse(reminderTimes) : reminderTimes
+
         const files = req.files as any;
         const images = Array.isArray(files) ? files.map((file: any) => file.location) : [];
         const habitData: Partial<IHabit> = {
@@ -96,7 +98,7 @@ export const createHabitController = async (
 
             reminders: {
                 enabled: remindersEnabled === "true",
-                times: reminderTimes,
+                times: listReminderTimes,
             },
             reminderLastTime
         };
@@ -230,6 +232,8 @@ export const updateHabitController = async (
         );
         const habitData: Partial<IHabit> = {};
 
+        const listReminderTimes = typeof reminderTimes === "string" ? JSON.parse(reminderTimes) : reminderTimes
+
         if (title !== undefined) habitData.title = title;
         if (category !== undefined) habitData.category = category;
         if (iconUrl !== undefined) habitData.iconUrl = iconUrl;
@@ -261,7 +265,7 @@ export const updateHabitController = async (
         if (remindersEnabled !== undefined || reminderTimes !== undefined) {
             habitData.reminders = {
                 enabled: remindersEnabled === "true" || remindersEnabled === true,
-                times: reminderTimes,
+                times: listReminderTimes,
             } as any;
         }
 
