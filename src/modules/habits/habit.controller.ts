@@ -53,6 +53,26 @@ export const createHabitController = async (
             reminderLastTime
         } = req.body;
 
+        const ALLOWED_DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+        const listrepeatDaysOfWeek = JSON.parse(repeatDaysOfWeek).filter(
+            (day: string) => ALLOWED_DAYS.includes(day)
+        );
+
+        const ALLOWED_DAYS_OF_MONTH = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+            21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+        ];
+        const listrepeatDaysOfMonth = JSON.parse(repeatDaysOfMonth).filter(
+            (month: number) => ALLOWED_DAYS_OF_MONTH.includes(month)
+        );
+
+        const ALLOWED_YEARS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        const listrepeatMonthsOfYear = JSON.parse(repeatMonthsOfYear).filter(
+            (year: number) => ALLOWED_YEARS.includes(year)
+        );
+
         const files = req.files as any;
         const images = Array.isArray(files) ? files.map((file: any) => file.location) : [];
         const habitData: Partial<IHabit> = {
@@ -64,9 +84,9 @@ export const createHabitController = async (
 
             repeat: {
                 type: repeatType,
-                daysOfWeek: repeatDaysOfWeek,
-                daysOfMonth: repeatDaysOfMonth?.map(Number),
-                monthsOfYear: repeatMonthsOfYear?.map(Number),
+                daysOfWeek: listrepeatDaysOfWeek,
+                daysOfMonth: listrepeatDaysOfMonth,
+                monthsOfYear: listrepeatMonthsOfYear,
             },
 
             goal: {
@@ -189,6 +209,25 @@ export const updateHabitController = async (
         const images = Array.isArray(files) ? files.map((file: any) => file.location) : undefined;
 
         // Build update object with only provided fields
+        const ALLOWED_DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+        const listrepeatDaysOfWeek = JSON.parse(repeatDaysOfWeek).filter(
+            (day: string) => ALLOWED_DAYS.includes(day)
+        );
+
+        const ALLOWED_DAYS_OF_MONTH = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+            21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+        ];
+        const listrepeatDaysOfMonth = JSON.parse(repeatDaysOfMonth).filter(
+            (month: number) => ALLOWED_DAYS_OF_MONTH.includes(month)
+        );
+
+        const ALLOWED_YEARS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        const listrepeatMonthsOfYear = JSON.parse(repeatMonthsOfYear).filter(
+            (year: number) => ALLOWED_YEARS.includes(year)
+        );
         const habitData: Partial<IHabit> = {};
 
         if (title !== undefined) habitData.title = title;
@@ -197,16 +236,16 @@ export const updateHabitController = async (
         if (color !== undefined) habitData.color = color;
         if (images !== undefined) habitData.images = images;
         if (isActive !== undefined) habitData.isActive = isActive;
-        if (reminderLastTime !== undefined ) habitData.reminderLastTime = reminderLastTime;
+        if (reminderLastTime !== undefined) habitData.reminderLastTime = reminderLastTime;
 
         // Handle repeat settings
-        if (repeatType !== undefined || repeatDaysOfWeek !== undefined || 
+        if (repeatType !== undefined || repeatDaysOfWeek !== undefined ||
             repeatDaysOfMonth !== undefined || repeatMonthsOfYear !== undefined) {
             habitData.repeat = {
                 type: repeatType,
-                daysOfWeek: repeatDaysOfWeek,
-                daysOfMonth: repeatDaysOfMonth?.map(Number),
-                monthsOfYear: repeatMonthsOfYear?.map(Number),
+                daysOfWeek: listrepeatDaysOfWeek,
+                daysOfMonth: listrepeatDaysOfMonth,
+                monthsOfYear: listrepeatMonthsOfYear,
             };
         }
 
@@ -227,7 +266,7 @@ export const updateHabitController = async (
         }
 
         const habit = await updateHabitById(userId, habitId, habitData);
-        
+
         if (!habit) {
             return responseHandler(res, null, 404, "Habit not found");
         }
@@ -262,8 +301,9 @@ export const addHabitLogController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
+        const { date } = req.params
 
-        await addHabitLog(userId);
+        await addHabitLog(userId, date);
         return responseHandler(res, null, 200, "Habit logs added/updated successfully");
     }
     catch (error) {
@@ -325,7 +365,7 @@ export const getDiscoverHabitsController = async (
         if (!req.user?.id) {
             throw new Error("User is not authenticated");
         }
-        const {trendingOnly, category} = req.query;
+        const { trendingOnly, category } = req.query;
         const userId = req.user.id;
         const habits = await getDiscoverHabits(userId, category as string | undefined, trendingOnly === 'true');
         return responseHandler(res, habits, 200, "Discover habits retrieved successfully");
@@ -350,7 +390,7 @@ export const updateSkippedFailedStatusController = async (
         if (!date || !habitId) {
             throw new Error("date and habitId are required in the request body");
         }
-        await updateSkippedFailedStatus(userId, habitId, date, skipped, failed );
+        await updateSkippedFailedStatus(userId, habitId, date, skipped, failed);
         return responseHandler(res, null, 200, "Habit log skipped/failed status updated successfully");
     }
     catch (error) {
@@ -368,7 +408,7 @@ export const generateHabitReportController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const { reportType ,startDate, endDate } = req.query;
+        const { reportType, startDate, endDate } = req.query;
         if (reportType !== "daily" && reportType !== "weekly" && reportType !== "monthly") {
             throw new Error("reportType query parameter must be one of: daily, weekly, monthly");
         }

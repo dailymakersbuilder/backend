@@ -124,54 +124,53 @@ export const getListOfHabits = async (): Promise<
 
 
 export const addHabitLog = async (
-    userId: string,
+  userId: string,
+  date: string // expected format: YYYY-MM-DD
 ): Promise<void> => {
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+  const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    const habits = await Habit.find({
-        userId: userObjectId,
-        isActive: true,
+  const habits = await Habit.find({
+    userId: userObjectId,
+    isActive: true,
+  });
+
+  if (!habits.length) return;
+
+  const bulkOps = [];
+
+  for (const habit of habits) {
+    // check if habit should run on this date
+    if (!isHabitForToday(habit, new Date(date))) continue;
+
+    bulkOps.push({
+      updateOne: {
+        filter: {
+          userId: userObjectId,
+          habitId: habit._id,
+          date: date,
+        },
+        update: {
+          $setOnInsert: {
+            userId: userObjectId,
+            habitId: habit._id,
+            date: date,
+            progressValue: 0,
+            goalValue: habit.goal.value,
+            completed: false,
+            failed: false,
+            percentageCompleted: 0,
+          },
+        },
+        upsert: true,
+      },
     });
+  }
 
-    if (!habits.length) return;
-
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
-
-    const bulkOps = [];
-    console.log("Habits to process for logs:", habits.length);
-
-    for (const habit of habits) {
-        console.log("Processing habit:", habit._id.toString());
-        console.log("Is habit for today?", isHabitForToday(habit, today));
-        if (!isHabitForToday(habit, today)) continue;
-
-        bulkOps.push({
-            updateOne: {
-                filter: {
-                    habitId: habit._id,
-                    date: todayStr,
-                },
-                update: {
-                    $setOnInsert: {
-                        habitId: habit._id,
-                        userId: userObjectId,
-                        date: todayStr,
-                        progressValue: 0,
-                        goalValue: habit.goal.value,
-                        completed: false,
-                    },
-                },
-                upsert: true,
-            },
-        });
-    }
-    console.log("Bulk operations to perform:", bulkOps.length);
-
-    if (bulkOps.length > 0) {
-        await HabitLog.bulkWrite(bulkOps);
-    }
+  if (bulkOps.length) {
+    await HabitLog.bulkWrite(bulkOps);
+  }
 };
+
 
 async function calculateStreak(
     habitId: string,
@@ -210,7 +209,7 @@ export const getHabitsByDate = async (
 ) => {
     const date = new Date(dateStr);
     const userObjectId = new mongoose.Types.ObjectId(userId);
-    await addHabitLog(userId);
+    await addHabitLog(userId, dateStr);
 
     const habits = await Habit.find({
         userId: userObjectId,
