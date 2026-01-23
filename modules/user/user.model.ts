@@ -1,0 +1,90 @@
+import mongoose, { Schema, HydratedDocument } from "mongoose";
+import type { DevicesType, LoginTypes } from "./user.types";
+
+export interface IUser {
+  fullName: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  firebaseUid?: string;
+  device: DevicesType;
+  avatarUrl?: string;
+  msgToken: string;
+  loginType: LoginTypes;
+  otpVerified?: boolean;
+  preferences?: Record<string, any>;
+  isDeleted?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type UserDocument = HydratedDocument<IUser>;
+
+const UserSchema = new Schema(
+  {
+    fullName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+    phone: {
+      type: String,
+    },
+    password: {
+      type: String,
+      required: function(this: IUser) {
+        return this.loginType === "standard";
+      }
+    },
+    firebaseUid: {
+      index: true,
+      type: String,
+      required: function(this: IUser) {
+        return this.loginType === "google" || this.loginType === "apple";
+      },
+      unique: true,
+      sparse: true,
+    },
+    device: {
+      type: String,
+      enum: ["android", "iphone", "web", "other"],
+      required: true,
+    },
+    msgToken: {
+      type: String,
+      required: false,
+    },
+    otpVerified: {
+      type: Boolean,
+      default: false,
+    },
+    loginType: {
+      type: String,
+      enum: ["standard", "google", "apple"],
+      default: "standard",
+    },
+    avatarUrl: {
+      type: String,
+    },
+    preferences: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model<UserDocument>("User", UserSchema);
