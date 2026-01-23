@@ -124,51 +124,51 @@ export const getListOfHabits = async (): Promise<
 
 
 export const addHabitLog = async (
-  userId: string,
-  date: string // expected format: YYYY-MM-DD
+    userId: string,
+    date: string // expected format: YYYY-MM-DD
 ): Promise<void> => {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
-  const habits = await Habit.find({
-    userId: userObjectId,
-    isActive: true,
-  });
-
-  if (!habits.length) return;
-
-  const bulkOps = [];
-
-  for (const habit of habits) {
-    // check if habit should run on this date
-    if (!isHabitForToday(habit, new Date(date))) continue;
-
-    bulkOps.push({
-      updateOne: {
-        filter: {
-          userId: userObjectId,
-          habitId: habit._id,
-          date: date,
-        },
-        update: {
-          $setOnInsert: {
-            userId: userObjectId,
-            habitId: habit._id,
-            date: date,
-            progressValue: 0,
-            goalValue: habit.goal.value,
-            completed: false,
-            failed: false,
-            percentageCompleted: 0,
-          },
-        },
-        upsert: true,
-      },
+    const habits = await Habit.find({
+        userId: userObjectId,
+        isActive: true,
     });
-  }
 
-  if (bulkOps.length) {
-    await HabitLog.bulkWrite(bulkOps);
-  }
+    if (!habits.length) return;
+
+    const bulkOps = [];
+
+    for (const habit of habits) {
+        // check if habit should run on this date
+        if (!isHabitForToday(habit, new Date(date))) continue;
+
+        bulkOps.push({
+            updateOne: {
+                filter: {
+                    userId: userObjectId,
+                    habitId: habit._id,
+                    date: date,
+                },
+                update: {
+                    $setOnInsert: {
+                        userId: userObjectId,
+                        habitId: habit._id,
+                        date: date,
+                        progressValue: 0,
+                        goalValue: habit.goal.value,
+                        completed: false,
+                        failed: false,
+                        percentageCompleted: 0,
+                    },
+                },
+                upsert: true,
+            },
+        });
+    }
+
+    if (bulkOps.length) {
+        await HabitLog.bulkWrite(bulkOps);
+    }
 };
 
 
@@ -469,20 +469,24 @@ export const generateHabitReport = async (
         return { total, completed, skipped, failed, successRate };
     };
 
-    /* -------------------- 4️⃣ WEEKLY STREAK -------------------- */
-    // Monday → Sunday
+    /* -------------------- 4️⃣ WEEKLY STREAK (CURRENT WEEK ONLY) -------------------- */
     const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     const weeklyStreak: Record<string, boolean> = {};
+    const currentWeekStart = dayjs().startOf("isoWeek").format("YYYY-MM-DD"); // Monday
+    const currentWeekEnd = dayjs().endOf("isoWeek").format("YYYY-MM-DD");     // Sunday
+    const currentWeekLogs = await HabitLog.find({
+        userId: userObjectId,
+        date: { $gte: currentWeekStart, $lte: currentWeekEnd }
+    });
 
     for (let i = 0; i < 7; i++) {
         const date = dayjs().startOf("isoWeek").add(i, "day").format("YYYY-MM-DD");
 
-        // Filter habits that should be done today based on repeat
         const habitsToDoToday = allHabits.filter(habit => {
             const repeat = habit.repeat;
-            const dayOfWeek = dateToWeekDay(date); // function below
-            const dayOfMonth = parseInt(dayjs(date).format("D"));
-            const month = parseInt(dayjs(date).format("M"));
+            const dayOfWeek = dateToWeekDay(date);
+            const dayOfMonth = Number(dayjs(date).format("D"));
+            const month = Number(dayjs(date).format("M"));
 
             if (repeat.type === "EVERY_DAY") return true;
             if (repeat.type === "WEEKLY" && repeat.daysOfWeek?.includes(dayOfWeek)) return true;
@@ -492,13 +496,24 @@ export const generateHabitReport = async (
             return false;
         });
 
-        // Check if all habitsToDoToday are completed in logs
+        // If no habits today → true (don’t break streak)
+        if (habitsToDoToday.length === 0) {
+            weeklyStreak[weekDays[i]] = true;
+            continue;
+        }
+
         const completedToday = habitsToDoToday.every(habit =>
-            weeklyLogs.some(log => log.habitId.toString() === habit._id.toString() && log.completed)
+            currentWeekLogs.some(
+                log =>
+                    log.habitId.toString() === habit._id.toString() &&
+                    log.date === date &&
+                    log.completed
+            )
         );
 
         weeklyStreak[weekDays[i]] = completedToday;
     }
+
 
     /* -------------------- 5️⃣ RETURN REPORT -------------------- */
     const returnData: Record<string, any> = {};
