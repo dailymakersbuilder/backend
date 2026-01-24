@@ -611,10 +611,10 @@ export const getRecommendedHabits = async (
             if (recommended.some(r => r.title === habit.title)) continue;
 
             recommended.push({
-            title: habit.title,
-            iconUrl: habit.iconUrl ?? "",
-            color: habit.color ?? ""
-        });
+                title: habit.title,
+                iconUrl: habit.iconUrl ?? "",
+                color: habit.color ?? ""
+            });
             if (recommended.length >= limit) break;
         }
     }
@@ -668,6 +668,14 @@ export const getHabitsWithPopularity = async (
             },
         },
 
+        {
+            $sort: {
+                [sortBy]: sortBy === "title"
+                    ? 1
+                    : -1,
+            },
+        },
+
         /* ---------- Shape response ---------- */
         {
             $project: {
@@ -682,13 +690,6 @@ export const getHabitsWithPopularity = async (
                 goalUnit: 1,
                 createdAt: 1,
                 updatedAt: 1,
-            },
-        },
-
-        /* ---------- Sorting ---------- */
-        {
-            $sort: {
-                [sortBy]: sortBy === "title" ? 1 : -1,
             },
         },
     ]);
