@@ -44,6 +44,7 @@ export const createHabit = async (
 
 export const getHabitsByUserId = async (
     userId: string,
+    search?: string,
     category?: string,
     from?: string,
     to?: string,
@@ -54,6 +55,12 @@ export const getHabitsByUserId = async (
         isActive: true,
     };
 
+    if (search) {
+        query.$or = [
+            { title: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+        ];
+    }
     if (category) {
         query.category = { $regex: `^${category}$`, $options: "i" };
     }
@@ -563,7 +570,7 @@ export const getRecommendedHabits = async (
         isActive: true,
     }).select("title category iconUrl color").lean();
 
-    const activeTitles = new Set(activeHabits.map(h => h.title.toLowerCase()));
+    const activeTitles = new Set(activeHabits.map(h => h?.title?.toLowerCase()));
 
     // 3️⃣ Get all habits from DB grouped by category
     const allHabits = await Habit.find({}).lean();
@@ -577,14 +584,22 @@ export const getRecommendedHabits = async (
     }
 
     // 5️⃣ Collect recommendations from preferred categories, excluding active habits
-    const recommended: string[] = [];
+    type RecommendedHabit = {
+        title: string;
+        iconUrl: string;
+        color: string;
+    };
+    const recommended: RecommendedHabit[] = [];
 
     for (const habit of allHabits) {
         if (!preferredCategories.has(habit.category)) continue;
-        if (activeTitles.has(habit.title.toLowerCase())) continue;
-        if (recommended.includes(habit.title)) continue;
-
-        recommended.push(habit.title);
+        if (activeTitles.has(habit?.title?.toLowerCase())) continue;
+        if (recommended.some(r => r.title === habit.title)) continue;
+        recommended.push({
+            title: habit.title,
+            iconUrl: habit.iconUrl ?? "",
+            color: habit.color ?? ""
+        });
 
         if (recommended.length >= limit) break;
     }
@@ -592,10 +607,14 @@ export const getRecommendedHabits = async (
     // 6️⃣ Fallback: if no preference matches, pick any non-active habits
     if (recommended.length === 0) {
         for (const habit of allHabits) {
-            if (activeTitles.has(habit.title.toLowerCase())) continue;
-            if (recommended.includes(habit.title)) continue;
+            if (activeTitles.has(habit?.title?.toLowerCase())) continue;
+            if (recommended.some(r => r.title === habit.title)) continue;
 
-            recommended.push(habit.title);
+            recommended.push({
+            title: habit.title,
+            iconUrl: habit.iconUrl ?? "",
+            color: habit.color ?? ""
+        });
             if (recommended.length >= limit) break;
         }
     }
@@ -605,6 +624,7 @@ export const getRecommendedHabits = async (
 
 export const getHabitsWithPopularity = async (
     sortBy: "createdAt" | "updatedAt" | "title",
+    search?: string,
     category?: string,
     from?: string,
     to?: string,
@@ -613,6 +633,12 @@ export const getHabitsWithPopularity = async (
         isActive: true,
     };
 
+    if (search) {
+        matchStage.$or = [
+            { title: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+        ];
+    }
     if (category) {
         matchStage.category = category;
     }

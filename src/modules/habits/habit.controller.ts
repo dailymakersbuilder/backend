@@ -122,13 +122,14 @@ export const getHabitsController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const { category, from, to, sortBy } = req.query;
+        const { search, category, from, to, sortBy } = req.query;
+        const searchString = typeof search === "string" ? search : undefined;
         const categoryString = typeof category === "string" ? category : undefined;
         const fromString = typeof from === "string" ? from : undefined;
         const toString = typeof to === "string" ? to : undefined;
         const sortByString = (sortBy === "createdAt" || sortBy === "updatedAt" || sortBy === "title") ? sortBy : undefined;
 
-        const habits = await getHabitsByUserId(userId, categoryString, fromString, toString, sortByString);
+        const habits = await getHabitsByUserId(userId, searchString, categoryString, fromString, toString, sortByString);
         return responseHandler(res, habits, 200, "Habits retrieved successfully");
     }
     catch (error) {
@@ -458,13 +459,14 @@ export const getHabitsWithPopularityController = async (
             throw new Error("User is not authenticated");
         }
         const userId = req.user.id;
-        const { category, from, to, sortBy } = req.query;
+        const { search, category, from, to, sortBy } = req.query;
+        const searchString = typeof search === "string" ? search : undefined;
         const categoryString = typeof category === "string" ? category : undefined;
         const fromString = typeof from === "string" ? from : undefined;
         const toString = typeof to === "string" ? to : undefined;
         const sortByString = (sortBy === "createdAt" || sortBy === "updatedAt" || sortBy === "title") ? sortBy : "createdAt";
 
-        const habits = await getHabitsWithPopularity(sortByString, categoryString, fromString, toString);
+        const habits = await getHabitsWithPopularity(sortByString, searchString, categoryString, fromString, toString);
         return responseHandler(res, habits, 200, "Habits with popularity retrieved successfully");
     }
     catch (error) {
