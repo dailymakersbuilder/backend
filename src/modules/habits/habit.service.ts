@@ -660,6 +660,7 @@ export const getHabitsWithPopularity = async (
                     category: "$category",
                 },
                 color: { $first: "$color" },
+                iconUrl: { $first: "$iconUrl" },
                 users: { $addToSet: "$userId" },
                 avgGoalValue: { $avg: "$goal.value" },
                 goalUnit: { $first: "$goal.unit" },
@@ -683,6 +684,7 @@ export const getHabitsWithPopularity = async (
                 title: "$_id.title",
                 category: "$_id.category",
                 color: 1,
+                iconUrl: 1,
                 usersCount: { $size: "$users" },
                 averageGoal: {
                     $round: ["$avgGoalValue", 1],
